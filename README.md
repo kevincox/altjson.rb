@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/kevincox/altjson.rb.png?branch=master)](https://travis-ci.org/kevincox/altjson.rb)
 
 AltJSON is an alternate encoding for JSON data.  It is simple and efficient.
-Most fields require only a single tag bit and most elements can be packed
+Most fields require only a single tag bit and many elements can be packed
 directly into the tag bit, requiring only one byte to send.
 
 It is not designed to replace JSON but as an alternative encoding.  This means
@@ -52,15 +52,15 @@ Null is encoded as the tag bit `0b10000010`.
 
 #### Standard Form
 
-Integers are encoded in the form `0b1010sbbb` where `s` indicates signed or
-unsigned numbers.  And `bbb` indicates the number of bytes used to encode the
-number.  The number of bytes is calculated as `n = 2^b`.  So a `b` of 0 is one byte
-and a `b` of 3 is eight bytes.  There is currently room for 256 byte (2048 bit)
-numbers although this may be changed in the future if the bits are more valuable
-elsewhere.
+Integers are encoded in the form `0b1010sbbb` where `s` indicates signed (set)
+or unsigned (unset) numbers.  And `bbb` indicates the number of bytes used to
+encode the number.  The number of bytes is calculated as `n = 2^b`.  So a `b` of
+0 is one byte and a `b` of 3 is eight bytes.  There is currently room for 256
+byte (2048 bit) numbers although this may be changed in the future if the bits
+are more valuable elsewhere.
 
-The following `n` bytes are the integer in big-endian two's complement encoding.
-Unsigned integers are of course not two's complement.
+The following `n` bytes are the integer in big-endian byte order.  Signed
+integers are in two's complement encoding.
 
 #### Compact Form
 
@@ -76,11 +76,6 @@ Since integers tend to be small this is a huge savings.
 Strings are treated as pure binary data by AltJSON although it is recommended to
 use UTF-8 encoded strings as JSON requires.
 
-### Floating Point Values
-
-Floating point values are encoded as `0b10000011` followed by 8 bytes of
-big-endian IEEE double precision floating point value.
-
 #### Standard Form
 
 Strings are a tag byte of the form `0b10110bbb` followed by `n` length bytes
@@ -90,10 +85,15 @@ those bytes `s` is the number of bytes in the string.
 #### Compact Form
 
 Strings have a compact form very similar to integers where their length is
-encoded in the tag byte.  The tag byte takes the form `0b01llllll` where `l` is
-the length of the string.  The bytes of the string then follow.  This allows
+encoded in the tag byte.  The tag byte takes the form `0b01ssssss` where `s` is
+the size of the string.  The bytes of the string then follow.  This allows
 strings of up to 63 bytes not require an additional byte to describe their
 length.
+
+### Floating Point Values
+
+Floating point values are encoded as `0b10000011` followed by 8 bytes of
+big-endian IEEE double precision floating point value.
 
 ### Arrays
 
@@ -105,7 +105,7 @@ elements of the array follow as AltJSON encoded values.
 
 #### Compact Form
 
-Compact form is `0b1100llll` where `l` is the number of elements in the array.
+Compact form is `0b1100ssss` where `s` is the number of elements in the array.
 The elements then follow.  This allows arrays of up to 15 elements to be encoded
 without a length byte.
 
@@ -126,5 +126,5 @@ entries then follow, each encoded as the key followed by the value.
 
 #### Compact Form
 
-The compact form is `0b1101llll` where `l` is the number of entries in the
+The compact form is `0b1101ssss` where `s` is the number of entries in the
 dictionary.  The entries then follow.
