@@ -1,0 +1,12 @@
+language: ruby
+rvm:
+  - 2.1.1
+  - ruby-head
+  # - rbx-2
+install:
+  - gem install 'minitest:~>5'
+script: test/all.rb
+
+# matrix:
+#   allow_failures:
+#     rvm: rbx-2
