@@ -293,7 +293,7 @@ module AltJSON
 			a, i = read_arr bytes, i, l
 			a
 		when t & INT_NMASK == INT_NEG
-			-1 & ~0xF | t
+			-1 & ~0xFF | t
 		when t == DOUBLE
 			check_size bytes, i+8
 			f = bytes.unpack("@#{i}G").first

@@ -19,6 +19,7 @@ class TestDecode < Minitest::Test
 	def test_int
 		assert_equal [0x22,1], "\x22".from_altjson
 		assert_equal [-1,1], "\xFF".from_altjson
+		assert_equal [-32,1], "\xE0".from_altjson
 		assert_equal [0x2345,3], "\xA1\x23\x45".from_altjson
 		assert_equal [0x12345678,5], "\xA2\x12\x34\x56\x78".from_altjson
 		assert_equal [-0x4000,3], "\xA9\xC0\x00".from_altjson
