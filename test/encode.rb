@@ -52,6 +52,7 @@ class TestEncode < Minitest::Test
 		assert_equal "\xA2\xFF\xFE\xFD\xFC".b,  0xFFFEFDFC.to_altjson
 		assert_equal "3\xA2\xFF\xFE\xFD\xFC".b, 0xFFFEFDFC.to_altjson('3')
 		
+		assert_equal "\xA301234567".b, 0x3031323334353637.to_altjson
 		assert_equal "\xA1\x4D\xFC".b, 0x4DFC.to_altjson
 		assert_equal "\xA0\xF3".b,     0xF3.to_altjson
 		assert_equal "\x13".b,         0x13.to_altjson

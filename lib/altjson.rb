@@ -75,6 +75,8 @@ class Integer
 			to_altjson16 into
 		when bits <= 32
 			to_altjson32 into
+		when bits <= 64
+			to_altjson64 into
 		else
 			raise TypeError.new "AltJSON doesn't know how to encode #{self}."
 		end
@@ -93,17 +95,22 @@ class Integer
 	def to_altjson8(into='')
 		into.force_encoding Encoding::BINARY
 		into << (AltJSON::INT|altjson_sign_flag|0)
-		into << [self].pack('c')
+		into << [self].pack('C')
 	end
 	def to_altjson16(into='')
 		into.force_encoding Encoding::BINARY
 		into << (AltJSON::INT|altjson_sign_flag|1)
-		into << [self].pack('n')
+		into << [self].pack('S>')
 	end
 	def to_altjson32(into='')
 		into.force_encoding Encoding::BINARY
 		into << (AltJSON::INT|altjson_sign_flag|2)
-		into << [self].pack('N')
+		into << [self].pack('L>')
+	end
+	def to_altjson64(into='')
+		into.force_encoding Encoding::BINARY
+		into << (AltJSON::INT|altjson_sign_flag|3)
+		into << [self].pack('Q>')
 	end
 end
 
