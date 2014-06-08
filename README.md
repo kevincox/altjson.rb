@@ -14,21 +14,23 @@ support it for more compact encodings.
 
 ```ruby
 # Encode into an array of bytes.
-{a: 5, b: [true, false, nil]}.to_altjson
-#=> [210, 65, 97, 5, 65, 98, 195, 129, 128, 130]
+r = {a: 5, b: [true, false, nil]}.to_altjson
+r == "\xD2\x41a\x05\x41b\xC3\x81\x80\x82"
 
-nil.to_altjson    #=> [0x82]
-false.to_altjson  #=> [0x80]
-true.to_altjson   #=> [0x81]
-15.to_altjson     #=> [0x0F]
-"foo".to_altjson  #=> [0x43, 0x66, 0x6F, 0x6F]
+nil.to_altjson    == "\x82"
+false.to_altjson  == "\x80"
+true.to_altjson   == "\x81"
+15.to_altjson     == "\x0F"
+"foo".to_altjson  == "\x43foo"
 :foo.to_altjson   # Implicitly converted to string.
-[].to_altjson     #=> [0xD0]
-{a: 3}.to_altjson #=> [0xD0]
+[].to_altjson     == "\xC0"
+{a: 3}.to_altjson == "\xD1\x41a\x03"
 
-# Decode an array of bytes.
-AltJSON.decode [0xC3, 38, 0, 0x81] #=> [38, 0, true]
-[0x80].from_altjson                #=> true
+# Decode an array of bytes (as an array or string).
+# You get two values, the value, and the length decoded.
+AltJSON.decode("\xC3\x38\0\x81") == [[0x38, 0, true], 4]
+"\x80".from_altjson              == [false,           1]
+[0x81].from_altjson              == [true,            1]
 ```
 
 ## Encoding

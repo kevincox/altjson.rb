@@ -31,18 +31,21 @@ class Object
 end
 
 class NilClass
-	def to_altjson(into=[])
+	def to_altjson(into='')
+		into.force_encoding Encoding::BINARY
 		into << AltJSON::NULL
 	end
 end
 
 class TrueClass
-	def to_altjson(into=[])
+	def to_altjson(into='')
+		into.force_encoding Encoding::BINARY
 		into << AltJSON::TRUE
 	end
 end
 class FalseClass
-	def to_altjson(into=[])
+	def to_altjson(into='')
+		into.force_encoding Encoding::BINARY
 		into << AltJSON::FALSE
 	end
 end
@@ -56,7 +59,8 @@ class Integer
 		end
 	end
 	
-	def to_altjson(into=[], short=true)
+	def to_altjson(into='', short=true)
+		# into.force_encoding Encoding::BINARY # Done in helpers.
 		bits = bit_length
 		if self < 0
 			bits += 1 # For the sign bit.
@@ -65,64 +69,69 @@ class Integer
 		case
 		when bits <= 6 && short
 			to_altjson6 into
-		when bits <= 8 # 8 bits.
+		when bits <= 8
 			to_altjson8 into
-		when self <= 0xFFFF # 16 bits
+		when bits <= 16
 			to_altjson16 into
-		when self <= 0xFFFFFFFF # 32 bits.
+		when bits <= 32
 			to_altjson32 into
 		else
 			raise TypeError.new "AltJSON doesn't know how to encode #{self}."
 		end
 	end
 	
-	def to_altjson6(into=[])
-		into << if self >= 0
-			AltJSON::INT_SVAL & self
-		else
-			AltJSON::INT_NVAL & self
-		end
+	def to_altjson6(into='')
+		into.force_encoding Encoding::BINARY
+		into << [self].pack('c')
+		
+		# if self >= 0
+		# 	AltJSON::INT_SVAL & self
+		# else
+		# 	AltJSON::INT_NVAL & self
+		# end
 	end
-	def to_altjson8(into=[])
-		into.push(AltJSON::INT|altjson_sign_flag|0,
-			self & 0xFF
-		)
+	def to_altjson8(into='')
+		into.force_encoding Encoding::BINARY
+		into << (AltJSON::INT|altjson_sign_flag|0)
+		into << [self].pack('c')
 	end
-	def to_altjson16(into=[])
-		into.push(AltJSON::INT|altjson_sign_flag|1,
-			self>> 8 & 0xFF,
-			self     & 0xFF
-		)
+	def to_altjson16(into='')
+		into.force_encoding Encoding::BINARY
+		into << (AltJSON::INT|altjson_sign_flag|1)
+		into << [self].pack('n')
 	end
-	def to_altjson32(into=[])
-		into.push(AltJSON::INT|altjson_sign_flag|2,
-			self>>24 & 0xFF,
-			self>>16 & 0xFF,
-			self>> 8 & 0xFF,
-			self     & 0xFF
-		)
+	def to_altjson32(into='')
+		into.force_encoding Encoding::BINARY
+		into << (AltJSON::INT|altjson_sign_flag|2)
+		into << [self].pack('N')
 	end
 end
 
 class Float
-	def to_altjson(into=[])
-		into.push << AltJSON::DOUBLE
-		into.concat [self].pack('G').bytes
+	def to_altjson(into='')
+		into.force_encoding Encoding::BINARY
+		into << AltJSON::DOUBLE
+		into << [self].pack('G')
 	end
 end
 
 class String
-	def to_altjson(into=[])
-		b = bytes
+	def to_altjson(into='')
+		into.force_encoding Encoding::BINARY
+		bin = self.b
 		
-		if b.length <= AltJSON::STR_SLEN
+		if bin.length <= AltJSON::STR_SLEN
 			into << (AltJSON::STR_SHORT|b.length)
-			into.concat(b)
+			into << b
 		else
 			i = b.length.to_altjson
-			i[0] = AltJSON::STR | i[0] & AltJSON::INT_BYTE
-			into.concat(i).concat(b)
+			i.setbyte 0, AltJSON::STR | i.getbyte(0) & AltJSON::INT_BYTE
+			into << i << b
 		end
+	end
+	
+	def from_altjson(start=0)
+		AltJSON.decode(self, start)
 	end
 end
 
@@ -133,13 +142,14 @@ class Symbol
 end
 
 class Hash
-	def to_altjson(into=[])
+	def to_altjson(into='')
+		into.force_encoding Encoding::BINARY
 		if length <= AltJSON::DIC_SLEN
 			into << (AltJSON::DIC_SHORT | length)
 		else
-			i = length.to_altjson([], false)
-			i[0] = AltJSON::DIC | i[0] & AltJSON::INT_BYTE
-			into.concat i
+			i = length.to_altjson('', false)
+			i.setbyte 0, AltJSON::DIC | i.getbyte(0) & AltJSON::INT_BYTE
+			into << i
 		end
 		
 		each {|k,v| k.to_altjson into; v.to_altjson into }
@@ -149,13 +159,14 @@ class Hash
 end
 
 module Enumerable
-	def to_altjson(into=[])
+	def to_altjson(into='')
+		into.force_encoding Encoding::BINARY
 		if length <= AltJSON::ARR_SLEN
 			into << (AltJSON::ARR_SHORT | length)
 		else
-			i = length.to_altjson([], false)
-			i[0] = AltJSON::ARR | i[0] & AltJSON::INT_BYTE
-			into.concat i
+			i = length.to_altjson('', false)
+			i.setbyte 0, AltJSON::ARR | i.getbyte(0) & AltJSON::INT_BYTE
+			into << i
 		end
 		
 		each {|v| v.to_altjson into }
@@ -164,7 +175,7 @@ module Enumerable
 	end
 	
 	def from_altjson(*args)
-		AltJSON.decode self, *args
+		AltJSON.decode pack('C*'), *args
 	end
 end
 
@@ -234,9 +245,13 @@ module AltJSON
 	end
 	
 	def self.decode(bytes, i=0)
+		bytes.force_encoding Encoding::BINARY
+		
 		check_size bytes, i+1
-		t = bytes[i]
+		t = bytes.getbyte i
 		i += 1
+		
+		# puts "Tag: 0x#{t.to_s(16).upcase}"
 		
 		r = case
 		when t & STR_SMASK == STR_SHORT
@@ -282,7 +297,7 @@ module AltJSON
 			-1 & ~0xF | t
 		when t == DOUBLE
 			check_size bytes, i+8
-			f = bytes.slice(i, 8).pack("C*").unpack("G").first
+			f = bytes.unpack("@#{i}G").first
 			i += 8
 			f
 		else
@@ -302,14 +317,14 @@ module AltJSON
 		check_size b, i+c
 		
 		r = if n then -1 else 0 end
-		c.times { r = (r<<8) | b[i]; i += 1 }
+		c.times { r = (r<<8) | b.getbyte(i); i += 1 }
 		[r, i]
 	end
 	
 	def self.read_str(b, i, l)
 		check_size b, i+l
 		
-		[b.slice(i, l).pack('C*'), i+l]
+		[b[i, l], i+l]
 	end
 	
 	def self.read_arr(b, i, l)
