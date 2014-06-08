@@ -85,12 +85,6 @@ class Integer
 	def to_altjson6(into='')
 		into.force_encoding Encoding::BINARY
 		into << [self].pack('c')
-		
-		# if self >= 0
-		# 	AltJSON::INT_SVAL & self
-		# else
-		# 	AltJSON::INT_NVAL & self
-		# end
 	end
 	def to_altjson8(into='')
 		into.force_encoding Encoding::BINARY
@@ -205,7 +199,7 @@ module AltJSON
 	
 	#           0b10110bbb # 2^(b+1) bytes.
 	STR       = 0b10110000
-	STR_MASK  = 0b10111000
+	STR_MASK  = 0b11111000
 	STR_BYTE  = 0b00000111
 	
 	#           0b10011bbb
@@ -221,14 +215,12 @@ module AltJSON
 	#           0b00vvvvvv
 	INT_SHORT = 0b00000000
 	INT_SMASK = 0b11000000
-	INT_SVAL  = 0b00111111
 	
 	INT_SHORT_BITS = 6
 	
 	#           0b111vvvvv # 2's comp
 	INT_NEG   = 0b11100000
 	INT_NMASK = 0b11100000
-	INT_NVAL  = 0b11111111
 	
 	INT_NEG_BITS = 6 # The leading 1 is implied.
 	
