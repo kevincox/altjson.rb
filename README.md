@@ -3,8 +3,8 @@
 [![Build Status](https://travis-ci.org/kevincox/altjson.rb.png?branch=master)](https://travis-ci.org/kevincox/altjson.rb)
 
 AltJSON is an alternate encoding for JSON data.  It is simple and efficient.
-Most fields require only a single tag bit and many elements can be packed
-directly into the tag bit, requiring only one byte to send.
+Most fields require only a single tag byte and many elements can be packed
+directly into the tag byte, requiring only one byte to send.
 
 It is not designed to replace JSON but as an alternative encoding.  This means
 that you can keep your JSON APIs but you can use AltJSON for clients that
@@ -37,18 +37,18 @@ AltJSON.decode("\xC3\x38\0\x81") == [[0x38, 0, true], 4]
 
 AltJSON utilizes a very simple encoding format.  It is a single tag byte
 followed by a variable number of data bytes.  Furthermore many types can pack
-extra data into the tag bit to cut down on encoded size.
+extra data into the tag byte to cut down on encoded size.
 
 The different types are described below.
 
 ### Boolean
 
-Boolean values are encoded as just a tag bit.  The bit is `0b10000001` for true
+Boolean values are encoded as just a tag byte.  The byte is `0b10000001` for true
 and `0b10000000` for false.
 
 ### Null
 
-Null is encoded as the tag bit `0b10000010`.
+Null is encoded as the tag byte `0b10000010`.
 
 ### Integers
 
