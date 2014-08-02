@@ -24,6 +24,8 @@
 #                                                                              #
 ################################################################################
 
+require 'stringio'
+
 class Object
 	def to_altjson(*args)
 		raise TypeError.new "Can't encode #{self.class} to altjson."
@@ -84,27 +86,27 @@ class Integer
 	
 	def to_altjson6(into='')
 		into.force_encoding Encoding::BINARY
-		into << [self].pack('c')
+		into << [self].pack('c'.freeze)
 	end
 	def to_altjson8(into='')
 		into.force_encoding Encoding::BINARY
 		into << (AltJSON::INT|altjson_sign_flag|0)
-		into << [self].pack('C')
+		into << [self].pack('C'.freeze)
 	end
 	def to_altjson16(into='')
 		into.force_encoding Encoding::BINARY
 		into << (AltJSON::INT|altjson_sign_flag|1)
-		into << [self].pack('S>')
+		into << [self].pack('S>'.freeze)
 	end
 	def to_altjson32(into='')
 		into.force_encoding Encoding::BINARY
 		into << (AltJSON::INT|altjson_sign_flag|2)
-		into << [self].pack('L>')
+		into << [self].pack('L>'.freeze)
 	end
 	def to_altjson64(into='')
 		into.force_encoding Encoding::BINARY
 		into << (AltJSON::INT|altjson_sign_flag|3)
-		into << [self].pack('Q>')
+		into << [self].pack('Q>'.freeze)
 	end
 end
 
@@ -112,7 +114,7 @@ class Float
 	def to_altjson(into='')
 		into.force_encoding Encoding::BINARY
 		into << AltJSON::DOUBLE
-		into << [self].pack('G')
+		into << [self].pack('G'.freeze)
 	end
 end
 
@@ -132,7 +134,15 @@ class String
 	end
 	
 	def from_altjson(start=0)
-		AltJSON.decode(self, start)
+		io = StringIO.new self, File::RDONLY|File::BINARY
+		io.seek start
+		[io.from_altjson, io.tell]
+	end
+end
+
+class StringIO
+	def from_altjson
+		AltJSON.decode(self)
 	end
 end
 
@@ -176,12 +186,12 @@ module Enumerable
 	end
 	
 	def from_altjson(*args)
-		AltJSON.decode pack('C*'), *args
+		AltJSON.decode pack('C*'.freeze), *args
 	end
 end
 
 module AltJSON
-	VERSION   = '1.0.0'
+	VERSION   = '1.0.0'.freeze
 	
 	BOOL      = 0b10000000
 	BOOL_MASK = 0b11111110
@@ -243,31 +253,21 @@ module AltJSON
 		obj.to_altjson
 	end
 	
-	def self.decode(bytes, i=0)
-		bytes.force_encoding Encoding::BINARY
-		
-		check_size bytes, i+1
-		t = bytes.getbyte i
-		i += 1
+	def self.decode(bytes)
+		t = getbyte bytes
 		
 		# puts "Tag: 0x#{t.to_s(16).upcase}"
 		
 		r = case
 		when t & STR_SMASK == STR_SHORT
-			l = t & STR_SLEN
-			s, i = read_str bytes, i, l
-			s
+			read_str bytes, t & STR_SLEN
 		when t & STR_MASK == STR
-			b = 2**(t&STR_BYTE)
-			l, i = read_int bytes, i, b
-			s, i = read_str bytes, i, l
-			s
+			l = read_int bytes, 2**(t&STR_BYTE)
+			read_str bytes, l
 		when t & INT_SMASK == INT_SHORT
 			t
 		when t & INT_MASK == INT
-			b = 2**(t&INT_BYTE)
-			p, i = read_int bytes, i, b, t & INT_SIGN != 0
-			p
+			read_int bytes, 2**(t&INT_BYTE), t & INT_SIGN != 0
 		when t == TRUE
 			true
 		when t == FALSE
@@ -275,75 +275,65 @@ module AltJSON
 		when t == NULL
 			nil
 		when t & DIC_SMASK == DIC_SHORT
-			l = t & DIC_SLEN
-			d, i = read_dic bytes, i, l
-			d
+			read_dic bytes, t & DIC_SLEN
 		when t & DIC_MASK == DIC
-			b = 2**(t&DIC_BYTE)
-			l, i = read_int bytes, i, b
-			d, i = read_dic bytes, i, l
-			d
+			l = read_int bytes, 2**(t&DIC_BYTE)
+			d = read_dic bytes, l
 		when t & ARR_SMASK == ARR_SHORT
-			l = t & ARR_SLEN
-			a, i = read_arr bytes, i, l
-			a
+			a = read_arr bytes, t & ARR_SLEN
 		when t & ARR_MASK == ARR
-			b = 2**(t&ARR_BYTE)
-			l, i = read_int bytes, i, b
-			a, i = read_arr bytes, i, l
-			a
+			l = read_int bytes, 2**(t&ARR_BYTE)
+			read_arr bytes, l
 		when t & INT_NMASK == INT_NEG
 			-1 & ~0xFF | t
 		when t == DOUBLE
-			check_size bytes, i+8
-			f = bytes.unpack("@#{i}G").first
-			i += 8
-			f
+			#TODO: Removed string copy.
+			getbytes(bytes, 8).unpack("G".freeze).first
 		else
 			raise TypeError.new "Unexpected tag 0x#{t.to_s(16).upcase}."
 		end
 		
-		[r, i]
+		r
 	end
 	
 	private
 	
-	def self.check_size(b, l)
-		raise TypeError.new 'Too little data.' unless b.length >= l
+	def self.getbyte(io)
+		b = io.getbyte
+		raise TypeError.new 'Too little data.'.freeze unless b
+		b
+	end
+	def self.getbytes(io, l)
+		b = io.gets l
+		raise TypeError.new 'Too little data.'.freeze unless b.length == l
+		b
 	end
 	
-	def self.read_int(b, i, c, n=false)
-		check_size b, i+c
-		
-		r = if n then -1 else 0 end
-		c.times { r = (r<<8) | b.getbyte(i); i += 1 }
-		[r, i]
+	def self.read_int(b, c, neg=false)
+		r = if neg then -1 else 0 end
+		c.times { r = (r<<8) | getbyte(b) }
+		r
 	end
 	
-	def self.read_str(b, i, l)
-		check_size b, i+l
-		
-		[b[i, l], i+l]
+	def self.read_str(b, l)
+		getbytes b, l
 	end
 	
-	def self.read_arr(b, i, l)
-		a = Array.new l
-		l.times do |e|
-			a[e], i = decode b, i
-			# puts "Array item #{e} = #{a[e]}"
+	def self.read_arr(b, l)
+		Array.new l do |i|
+			decode b
 		end
-		[a, i]
 	end
 	
-	def self.read_dic(b, i, l)
+	def self.read_dic(b, l)
 		d = {}
 		# puts "Dic len #{l}"
 		l.times do
-			k, i = decode b, i
-			v, i = decode b, i
+			k = decode b
+			v = decode b
 			# puts "Just got #{k}/#{v}"
 			d[k] = v
 		end
-		[d, i]
+		d
 	end
 end

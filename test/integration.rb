@@ -10,7 +10,7 @@ class TestIntegration < Minitest::Test
 	
 	def assert_roundtrip(o)
 		b = o.to_altjson
-		r, l = AltJSON.decode(b)
+		r, l = b.from_altjson
 		assert_equal o, r
 		assert_equal b.length, l
 	end
