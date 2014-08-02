@@ -260,10 +260,10 @@ module AltJSON
 		
 		r = case
 		when t & STR_SMASK == STR_SHORT
-			read_str bytes, t & STR_SLEN
+			getbytes bytes, t & STR_SLEN
 		when t & STR_MASK == STR
 			l = read_int bytes, 2**(t&STR_BYTE)
-			read_str bytes, l
+			getbytes bytes, l
 		when t & INT_SMASK == INT_SHORT
 			t
 		when t & INT_MASK == INT
@@ -313,10 +313,6 @@ module AltJSON
 		r = if neg then -1 else 0 end
 		c.times { r = (r<<8) | getbyte(b) }
 		r
-	end
-	
-	def self.read_str(b, l)
-		getbytes b, l
 	end
 	
 	def self.read_arr(b, l)
