@@ -278,7 +278,7 @@ module AltJSON
 			read_dic bytes, t & DIC_SLEN
 		when t & DIC_MASK == DIC
 			l = read_int bytes, 2**(t&DIC_BYTE)
-			d = read_dic bytes, l
+			read_dic bytes, l
 		when t & ARR_SMASK == ARR_SHORT
 			a = read_arr bytes, t & ARR_SLEN
 		when t & ARR_MASK == ARR
